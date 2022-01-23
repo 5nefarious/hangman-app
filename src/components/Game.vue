@@ -136,7 +136,10 @@ export default {
     },
   },
   watch: {
-    word(newWord) { this.resetState(newWord) }
+    word(newWord) {
+      this.resetState(newWord)
+      this.updateProbs()
+    }
   },
   mounted() {
     this.resetState(this.word)
