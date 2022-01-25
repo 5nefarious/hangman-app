@@ -1,19 +1,19 @@
 <template>
   <div id="game" class="container" :style="gridStyle">
     <div class="known-letter grid-item" v-for="char, i in known"
-     :key="i" :style="gridCellStyle({ col: i + 2 })">
-     <h1>{{ char }}</h1>
+     :key="i" :style="gridLabelStyle({ col: i + 2 })">
+      <h1>{{ char }}</h1>
     </div>
-    <div class="row-label grid-item" v-for="char, i in chars"
-     :key="i" :style="gridCellStyle({ row: i + 2 })">
+    <div class="row-label grid-item" v-for="char, i in chars" :key="i"
+     :style="gridLabelStyle({ row: i + 2, alpha: charProbs[i] })">
       {{ char }}
     </div>
     <div class="prob-cell grid-item" v-for="{ value, index }, i in probs" :key="i"
      :style="gridCellStyle({ row: index[0] + 2, col: index[1] + 2, alpha: value })">
       <small>{{ displayProb(value) }}</small>
     </div>
-    <div class="prob-cell grid-item" v-for="{ value, index }, i in charProbs" :key="i"
-     :style="gridCellStyle({ row: index[0] + 2, col: -1, alpha: value })">
+    <div class="prob-cell grid-item" v-for="value, i in charProbs" :key="i"
+     :style="gridCellStyle({ row: i + 2, col: -1, alpha: value })">
       <small>{{ displayProb(value) }}</small>
     </div>
   </div>
@@ -57,11 +57,13 @@ export default {
       return { 'grid-template-columns': "1fr ".repeat(this.numCols) }
     },
     charProbs() {
+      var vec = null
       try {
-        return math.multiply(this.probs, math.ones(this.word.length, 1))
+        vec = math.multiply(this.probs, math.ones(this.word.length, 1))
       } catch (err) {
-        return math.zeros(this.chars.length, 1)
+        vec = math.zeros(this.chars.length, 1)
       }
+      return math.flatten(vec).toArray()
     },
     isKnown() {
       return this.known.split('').map((char) => char != '_')
@@ -85,8 +87,7 @@ export default {
       if (!this.chars) this.chars = chars
       this.probs = math.zeros(this.chars.length, this.word.length)
       {
-        let add = (a, b) => a + b
-        let total = counts.map((row) => row.reduce(add, 0)).reduce(add, 0)
+        let total = math.sum(counts)
         for (let m = 0; m < counts.length; m++) {
           let char = chars[m]
           let i = this.chars.indexOf(char), j = 0
@@ -103,7 +104,7 @@ export default {
       var maxIdx = [], maxProb = 0
       for (let i = 0; i < this.chars.length; i++) {
         if (this.guessed.includes(this.chars[i])) continue
-        let val = this.charProbs.get([i, 0])
+        let val = this.charProbs[i]
         if (val == maxProb) {
           maxIdx.push(i)
         } else if (val > maxProb) {
@@ -119,18 +120,22 @@ export default {
       }
       this.known = known.join('')
       this.guessed += char
-      console.debug('guessed: ' + this.guessed)
       if (this.known.indexOf('_') > -1) {
         window.setTimeout(this.updateProbs, 1000 * this.delay)
       }
     },
-    gridCellStyle({row, col, alpha}) {
+    gridLabelStyle({row, col, alpha}) {
       var style = { }
       if (row) style['grid-row'] = row
       if (col) style['grid-column'] = col
-      if (alpha) {
-        style['opacity'] = (alpha / 2) + 0.5
-        style['background-color'] = `hsla(140, 50%, 30%, ${alpha})`
+      if (alpha) style['opacity'] = (alpha / 2) + 0.5
+      return style
+    },
+    gridCellStyle(params) {
+      var style = this.gridLabelStyle(params)
+      if (params.alpha) {
+        style['opacity'] = math.sqrt(style['opacity'])
+        style['background-color'] = `hsla(140, 50%, 30%, ${params.alpha})`
       }
       return style
     },
@@ -161,6 +166,7 @@ export default {
 
 .row-label {
   grid-column: 1;
+  opacity: 40%;
 }
 
 .known-letter {
